@@ -1,0 +1,191 @@
+{
+  "name": "note taking through telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [
+        -320,
+        20
+      ],
+      "id": "29dec1d2-60f4-45fa-950d-0ac12260bfc8",
+      "webhookId": "952764ad-a75b-499b-85fc-842930734a57"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"message\"][\"chat\"][\"id\"]}}",
+        "additionalFields": {}
+      },
+      "name": "Confirm Note Receipt",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        -120,
+        20
+      ],
+      "id": "19d90c52-4db5-4266-a889-eedbb9084e3d",
+      "webhookId": "e40288b7-b07f-4a78-b392-871cb54e8062"
+    },
+    {
+      "parameters": {
+        "functionCode": "const now = new Date().toISOString();\nreturn [{\n  json: {\n    originalNote: $json.message.text,\n    timestamp: now\n  }\n}];"
+      },
+      "name": "Timestamp Note",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        80,
+        20
+      ],
+      "id": "8fa682b7-e712-4f2d-9be5-7bee84c2461a"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "name": "Add to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        660,
+        20
+      ],
+      "id": "6967d62a-17bf-4a02-960a-6188cba0f393"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "Timestamp",
+              "value": "={{$json.timestamp}}"
+            },
+            {
+              "name": "Subject",
+              "value": "={{$json.subject}}"
+            },
+            {
+              "name": "Note",
+              "value": "={{$json.organized_note}}"
+            },
+            {
+              "name": "Action Items",
+              "value": "={{$json.action_items}}"
+            },
+            {
+              "name": "Due Date",
+              "value": "={{$json.due_date}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Prepare Sheet Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [
+        420,
+        240
+      ],
+      "id": "a1ec3004-6f2d-4507-bc35-c5d2b490d7fe"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        280,
+        20
+      ],
+      "id": "87beeb1f-6833-4cc2-b6cd-83246b839fb0",
+      "name": "AI Agent"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Confirm Note Receipt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirm Note Receipt": {
+      "main": [
+        [
+          {
+            "node": "Timestamp Note",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Sheet Data": {
+      "main": [
+        [
+          {
+            "node": "Add to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Timestamp Note": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Add to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ca912c0f-7ffb-48f3-b306-6da0b5dd6dac",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "93f8902cd8dfb5cd4d9be49a075bb8ee04005bf78f3cc46a7a4d9cf78b709de9"
+  },
+  "id": "OqtdOy8Gv4SWBGYw",
+  "tags": []
+}
