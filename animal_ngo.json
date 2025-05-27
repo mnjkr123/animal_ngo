@@ -1,0 +1,250 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "triggerOn": "message_received"
+      },
+      "name": "WhatsApp Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "injured-dog-alert"
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"from\"]}}",
+        "text": "Hi 👋! Thank you for contacting us about an injured animal. Can you please tell me your *name*?"
+      },
+      "name": "Ask Name",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "propertyName": "name"
+      },
+      "name": "Capture Name",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [750, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"from\"]}}",
+        "text": "Thanks, {{$node[\"Capture Name\"].json[\"name\"]}}. Can you please provide your *contact number*?"
+      },
+      "name": "Ask Contact",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+    {
+      "parameters": {
+        "propertyName": "contact"
+      },
+      "name": "Capture Contact",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"from\"]}}",
+        "text": "Great. Can you describe the *animal's condition and location*?"
+      },
+      "name": "Ask Details",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1500, 300]
+    },
+    {
+      "parameters": {
+        "propertyName": "animal_details"
+      },
+      "name": "Capture Details",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1750, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"from\"]}}",
+        "text": "Do you give consent to share this information with our rescue team and use it for our logs? Reply with *Yes* to confirm."
+      },
+      "name": "Ask Consent",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"text\"]}}",
+              "operation": "equals",
+              "value2": "Yes"
+            }
+          ]
+        }
+      },
+      "name": "Check Consent",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "toEmail": "rescues@yourngo.org",
+        "subject": "🚨 New Injured Animal Report",
+        "text": "Name: {{$node[\"Capture Name\"].json[\"name\"]}}\nContact: {{$node[\"Capture Contact\"].json[\"contact\"]}}\nDetails: {{$node[\"Capture Details\"].json[\"animal_details\"]}}"
+      },
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [2500, 200]
+    },
+    {
+      "parameters": {
+        "sheetId": "your_google_sheet_id",
+        "range": "Sheet1!A1",
+        "valueInputMode": "USER_ENTERED",
+        "options": {},
+        "values": [
+          [
+            "={{$node[\"Capture Name\"].json[\"name\"]}}",
+            "={{$node[\"Capture Contact\"].json[\"contact\"]}}",
+            "={{$node[\"Capture Details\"].json[\"animal_details\"]}}",
+            "={{$now}}"
+          ]
+        ]
+      },
+      "name": "Log to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [2500, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{$json[\"from\"]}}",
+        "text": "✅ Thank you! We've recorded your report and our team will act on it immediately."
+      },
+      "name": "Final Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [2750, 300]
+    }
+  ],
+  "connections": {
+    "WhatsApp Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ask Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Name": {
+      "main": [
+        [
+          {
+            "node": "Capture Name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Name": {
+      "main": [
+        [
+          {
+            "node": "Ask Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Contact": {
+      "main": [
+        [
+          {
+            "node": "Capture Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Contact": {
+      "main": [
+        [
+          {
+            "node": "Ask Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Details": {
+      "main": [
+        [
+          {
+            "node": "Capture Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Details": {
+      "main": [
+        [
+          {
+            "node": "Ask Consent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask Consent": {
+      "main": [
+        [
+          {
+            "node": "Check Consent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Consent": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Final Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
