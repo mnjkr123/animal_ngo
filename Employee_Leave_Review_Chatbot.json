@@ -1,0 +1,614 @@
+{
+  "name": "Employee Leave Review Chatbot",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Ensure there's at least one input item.\nif (!items || items.length === 0) {\n  throw new Error(\"No input items found.\");\n}\n\n// Our input is expected to have a 'data' property containing the JSONP string.\nconst input = items[0].json;\n\nif (!input.data) {\n  throw new Error(\"Input JSON does not have a 'data' property.\");\n}\n\nconst rawData = input.data;\n\n// Use a regex to extract the JSON content from the Google Visualization JSONP response.\nconst regex = /google\\.visualization\\.Query\\.setResponse\\((.*)\\);?$/s;\nconst match = rawData.match(regex);\n\nif (!match) {\n  throw new Error(\"Input data does not match the expected Google Visualization JSONP format.\");\n}\n\nconst jsonString = match[1];\n\n// Parse the extracted JSON string.\nlet parsed;\ntry {\n  parsed = JSON.parse(jsonString);\n} catch (error) {\n  throw new Error(\"Failed to parse JSON: \" + error.message);\n}\n\n// Verify that the parsed JSON has the expected 'table' structure with 'cols' and 'rows'.\nif (!parsed.table || !Array.isArray(parsed.table.cols) || !Array.isArray(parsed.table.rows)) {\n  throw new Error(\"Parsed JSON does not have the expected 'table' structure with 'cols' and 'rows'.\");\n}\n\nconst cols = parsed.table.cols;\nconst rows = parsed.table.rows;\n\n// Helper function to convert date string from \"Date(YYYY,M,D)\" to \"YYYY-MM-DD\"\nfunction formatDate(dateStr) {\n  const match = dateStr.match(/^Date\\((\\d+),(\\d+),(\\d+)\\)$/);\n  if (!match) return dateStr;\n  const year = parseInt(match[1], 10);\n  const month = parseInt(match[2], 10) + 1; // JavaScript months are 0-indexed\n  const day = parseInt(match[3], 10);\n  // Format with leading zeros\n  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;\n}\n\n// Map each row into an object using the column labels as keys.\nconst newItems = rows.map(row => {\n  const obj = {};\n  cols.forEach((col, index) => {\n    let value = row.c && row.c[index] ? row.c[index].v : null;\n    // If the column type is \"date\" and the value is a string that looks like \"Date(YYYY,M,D)\"\n    if (col.type === \"date\" && typeof value === \"string\") {\n      value = formatDate(value);\n    }\n    obj[col.label] = value;\n  });\n  return { json: obj };\n});\n\n// Return the new array of items.\nreturn newItems;\n"
+      },
+      "id": "84c438fc-c7ac-43c0-bb47-e4c4d04e15c6",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -20,
+        860
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "ccd74f35-0212-4e92-b22e-501202c9f8fd",
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        520,
+        860
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "Code transforms the data into JSON objects.",
+        "height": 200,
+        "width": 280,
+        "color": 7
+      },
+      "id": "3038c3fe-d556-4e1e-a278-fcbb1370ed98",
+      "name": "Sticky Note2",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -120,
+        800
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/gviz/tq",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleSheetsOAuth2Api",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "HRData",
+              "value": "sheet1"
+            },
+            {
+              "name": "tq",
+              "value": "=SELECT * WHERE A >= DATE '{{ $json.start_date }}' AND A <= DATE '{{ $json.end_date }}' AND D = '{{ $json.status }}'\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8400f980-89e2-4822-bf54-b00e6481641a",
+      "name": "Google Sheets request",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -40,
+        600
+      ],
+      "typeVersion": 4.2,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Jh0QcgVAwPcxS1pz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Only use this as last resort, because it will pull all data at once. Get all employee leave records\n",
+        "documentId": {
+          "__rl": true,
+          "value": "1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co",
+          "mode": "list",
+          "cachedResultName": "HRData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "497eb23f-0bd1-4112-9b7b-44c2c308c667",
+      "name": "Get all transactions",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "position": [
+        -280,
+        240
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Jh0QcgVAwPcxS1pz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## ## Example Questions HR Can Ask\n- Show me all Pending leave applications in November 2024\n- What are the most common errors in leave applications?\n- Which manager has the most declined leave requests?\n- How many sick leaves were approved this month in 2025?\n",
+        "height": 340,
+        "width": 320,
+        "color": 4
+      },
+      "id": "5eaf8a87-11ca-493d-a3f4-e9c254f8a697",
+      "name": "Sticky Note3",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1100,
+        40
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## Copy this Sheets file to your Google Drive\nhttps://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/edit?gid=0#gid=0",
+        "width": 400,
+        "color": 4
+      },
+      "id": "5f8bcca6-2555-4946-b675-cb9c19458679",
+      "name": "Sticky Note4",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1100,
+        -120
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {},
+      "id": "ef217862-afe1-4134-8e87-e33e6214f17a",
+      "name": "Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "position": [
+        -480,
+        240
+      ],
+      "typeVersion": 1.3
+    },
+    {
+      "parameters": {
+        "content": "# Sub-workflow\nThe AI can call this sub-workflow anytime,\nby using the **Records by leave date and leave status** node.\n\nThe sub-workflow will return  the result of the last executed node to the AI.",
+        "height": 520,
+        "width": 1400,
+        "color": 7
+      },
+      "id": "f91ac8b6-c9cb-4e2a-a53f-c586507e4e57",
+      "name": "Sticky Note12",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -660,
+        440
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e50da873-bbbd-41d3-a418-83193907977c",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              },
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "={{ $('When Executed by Another Workflow').item.json.status }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "314b6023-78ef-4e0d-98c9-50399ec1dc5b",
+      "name": "Filter by status",
+      "type": "n8n-nodes-base.filter",
+      "position": [
+        260,
+        860
+      ],
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "content": "![PluggAI](https://pluggai.com/images/logo.png)\n### We specialize in AI Agent, AI automations and data analysis. We work to solve all AI related concerns of client and also work on turnkey AI projects\n\n## For business inquiries, email me at admin@pluggai.com\n## Or message me on [Twitter](https://x.com/ekmtutor) for a faster ## response.\n\n### Check out my other templates\n### 👉 https://www.pluggai.com\n",
+        "height": 540,
+        "width": 540,
+        "color": 7
+      },
+      "id": "22b8259f-2870-4343-b883-1f783ed26f56",
+      "name": "Sticky Note10",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        400,
+        -100
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "## 💡 **Want to learn advanced n8n skills and earn money building workflows?**\n‎## ‎ ‎ ‎ ‎ ‎ ‎ ‎Check out [PluggAI](https://www.pluggai.com)\n\n##       Book a session with us on https://calendly.com/pluggai",
+        "height": 260,
+        "width": 700,
+        "color": 4
+      },
+      "id": "f1f1f604-dd61-49c4-8ae3-2ce5f1a87127",
+      "name": "Sticky Note16",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1420,
+        440
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {
+          "temperature": 0.2
+        }
+      },
+      "id": "74c07991-5baf-4108-9b86-82c2ea0cd609",
+      "name": "OpenAI Chat Model2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "position": [
+        -700,
+        260
+      ],
+      "typeVersion": 1.2,
+      "credentials": {
+        "openAiApi": {
+          "id": "oW3Tn4dneyZeUlwW",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "This node sends all the items back to the AI Agent.",
+        "height": 220,
+        "width": 220,
+        "color": 7
+      },
+      "id": "d64717f1-5efe-4f24-b595-e77bb7b4fc01",
+      "name": "Sticky Note17",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        440,
+        780
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "content": "This node sends a custom HTTP Request to the Google Sheets API.\n\n",
+        "height": 260,
+        "width": 300,
+        "color": 7
+      },
+      "id": "586552bf-8fc9-4c6a-b091-c2be10b4da35",
+      "name": "Sticky Note18",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -140,
+        500
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -620,
+        -140
+      ],
+      "id": "3a9137e4-070a-4ac4-9bda-bb3f7aa69b93",
+      "name": "When chat message received",
+      "webhookId": "7c50cf13-bb14-411a-ab07-1f1b5d6af40b"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -500,
+        600
+      ],
+      "id": "acf40b86-aad7-4d17-ba8f-d20fdc78abb3",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Input: items with json.query like \"January 2025, Completed\"\n\nconst monthMap = {\n  January: \"01\",\n  February: \"02\",\n  March: \"03\",\n  April: \"04\",\n  May: \"05\",\n  June: \"06\",\n  July: \"07\",\n  August: \"08\",\n  September: \"09\",\n  October: \"10\",\n  November: \"11\",\n  December: \"12\"\n};\n\nreturn items.map(item => {\n  const input = item.json.query; // e.g. \"January 2025, Completed\"\n  // Split by comma\n  const parts = input.split(\",\").map(s => s.trim());\n  if (parts.length < 2) {\n    throw new Error(\"Input does not have both date and status\");\n  }\n\n  // Extract month and year from the first part\n  const datePart = parts[0]; // e.g. \"January 2025\"\n  const status = parts[1];   // e.g. \"Completed\"\n\n  // Split datePart by space\n  const [monthName, year] = datePart.split(\" \");\n\n  if (!monthMap[monthName] || !year) {\n    throw new Error(\"Invalid month or year format\");\n  }\n\n  const monthNum = monthMap[monthName];\n\n  // Construct start_date and end_date for that month (assuming full month)\n  // End date is the last day of the month, can hardcode 31 for simplicity or use Date logic:\n  // For better accuracy:\n  const daysInMonth = new Date(year, parseInt(monthNum), 0).getDate(); // last day of month\n\n  const start_date = `${year}-${monthNum}-01`;\n  const end_date = `${year}-${monthNum}-${daysInMonth.toString().padStart(2, \"0\")}`;\n\n  return {\n    json: {\n      start_date,\n      end_date,\n      status\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -280,
+        640
+      ],
+      "id": "09f3b8e9-86fb-4703-be6d-75ad834544cc",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Find leave records by leave type.\nOur leave types are:\n\nSick Leave\n\nVacation\n\nCasual Leave\n\nWork From Home\n\nUnpaid Leave\n\nMaternity Leave\n\nPaternity Leave",
+        "documentId": {
+          "__rl": true,
+          "value": "1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co",
+          "mode": "list",
+          "cachedResultName": "HRData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mMTdfx9gGaB1g57mYMJbcFLclQPn3xf3zkmkQXWGBDY/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Product",
+              "lookupValue": "={\n  \"lookupColumn\": \"Leave Type\",\n  \"lookupValue\": \"={{ $fromAI('leave_type', 'Type of leave such as Sick, Vacation, Casual, WFH, etc.', 'string') }}\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "35200a75-aaa7-4d8e-877c-cb35e81e2522",
+      "name": "Get leave records by leave type",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "position": [
+        100,
+        240
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Jh0QcgVAwPcxS1pz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "=Records_by_leave_date_and_leave_status",
+        "description": "Use this tool to get records filtered by leave date and leave status. ",
+        "workflowId": {
+          "__rl": true,
+          "value": "aJxxNyE5UfoMUmov",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "d38a3ca2-d09d-4e1c-8929-f54c5ede744f",
+      "name": "Records by leave date and leave status",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "position": [
+        -60,
+        280
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "leave records by employee name",
+        "documentId": {
+          "__rl": true,
+          "value": "1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co",
+          "mode": "list",
+          "cachedResultName": "HRData",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1V4tq109Z651XqjGcs-zzGSVj-aHonwD7wxgNsiAC2co/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Employee Name",
+              "lookupValue": "={   \"lookupColumn\": \"Employee Name\",   \"lookupValue\": \"={{ $fromAI('employee_name', 'Full name of the employee to find their leave records', 'string') }}\" }"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a312ee3a-0d93-450c-a99e-e1959c3a029f",
+      "name": "leave records by employee name",
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "position": [
+        280,
+        220
+      ],
+      "typeVersion": 4.5,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "Jh0QcgVAwPcxS1pz",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=You are a helpful assistant.\nCurrent timestamp is {{ $now }}",
+          "maxIterations": 15
+        }
+      },
+      "id": "a12b1224-1370-4b67-824e-4aad960079df",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "position": [
+        -340,
+        -140
+      ],
+      "typeVersion": 1.7
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Filter by status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter by status": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all transactions": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get leave records by leave type": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Records by leave date and leave status": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "leave records by employee name": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "aa41a140-cd2f-43c5-9392-d5348e57f1df",
+  "meta": {
+    "instanceId": "6ba085380f51b01b2ce329bf1d4e52636da86724386e62aadea533a568524e0f"
+  },
+  "id": "aJxxNyE5UfoMUmov",
+  "tags": []
+}
